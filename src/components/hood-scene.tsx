@@ -851,7 +851,7 @@ function islandFilterCore(layout: Layout) {
       zCBack = -zLimTop;
     }
 
-    let gapB = halfGap;
+    let gapB: number = halfGap;
     if (zCFront < gapB + 24) {
       gapB = Math.max(14, zCFront - 40);
     }
