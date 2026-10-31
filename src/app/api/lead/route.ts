@@ -184,8 +184,8 @@ export async function POST(request: Request) {
     }
   }
 
-  // MAX Bot API: текст + файлы (platform-api2, /uploads → attachments)
-  const maxToken = process.env.MAX_BOT_TOKEN;
+  // MAX Bot API: сначала текст, затем файлы (/uploads → attachments)
+  const maxToken = (process.env.MAX_BOT_TOKEN || '').trim();
   const maxRecipients = splitIds(process.env.MAX_RECIPIENT_IDS);
   if (maxToken && maxRecipients.length > 0) {
     tasks.push(
@@ -198,7 +198,14 @@ export async function POST(request: Request) {
             ? [{ ok: true as const, bytes: u.bytes, meta: u.meta, filename: u.filename }]
             : [],
         ),
+      }).then((r) => {
+        console.info('[lead] MAX ok', r);
+        return r;
       }),
+    );
+  } else if (tgToken && tgChats.length > 0) {
+    console.warn(
+      '[lead] MAX не настроен (нужны MAX_BOT_TOKEN и MAX_RECIPIENT_IDS — числовые user_id, не ссылка max.ru/u/…). Заявка ушла только в Telegram.',
     );
   }
 
@@ -225,14 +232,31 @@ export async function POST(request: Request) {
   }
 
   const results = await Promise.allSettled(tasks);
-  const failed = results.filter((r) => r.status === 'rejected');
+  const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
   if (failed.length === results.length) {
-    console.error('[lead] доставка не удалась', failed, lead);
+    console.error(
+      '[lead] доставка не удалась',
+      failed.map((f) => (f.reason instanceof Error ? f.reason.message : String(f.reason))),
+      lead,
+    );
     return NextResponse.json({ error: 'Не удалось передать заявку. Позвоните, пожалуйста.' }, { status: 502 });
   }
   if (failed.length > 0) {
-    console.error('[lead] частичная доставка', failed);
+    const reasons = failed.map((f) => (f.reason instanceof Error ? f.reason.message : String(f.reason)));
+    console.error('[lead] частичная доставка', reasons);
+    // Клиенту — ок (Telegram мог уйти), в ответе — подсказка для отладки
+    return NextResponse.json({
+      ok: true,
+      delivered: results.length - failed.length,
+      partial: true,
+      failedChannels: reasons.map((m) => (m.startsWith('MAX') ? 'max' : m.startsWith('Telegram') || m.includes('telegram') ? 'telegram' : 'other')),
+      debug: reasons.map((m) => m.slice(0, 180)),
+    });
   }
 
-  return NextResponse.json({ ok: true, delivered: results.length - failed.length });
+  return NextResponse.json({
+    ok: true,
+    delivered: results.length,
+    maxConfigured: Boolean(maxToken && maxRecipients.length > 0),
+  });
 }
