@@ -5,7 +5,7 @@ export const site = {
   url: process.env.NEXT_PUBLIC_SITE_URL || 'https://fortinox.ru',
   phone: '+7 (995) 158-44-70',
   phoneHref: 'tel:+79951584470',
-  email: 'fortinox@yandex.ru',
+  email: 'fort.inox@yandex.ru',
   address: 'Москва и Московская область',
   hours: 'Пн–Пт 10:00–19:00',
   description:

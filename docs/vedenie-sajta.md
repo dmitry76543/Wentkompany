@@ -58,7 +58,7 @@
 ```ts
 phone: '+7 (995) 158-44-70',
 phoneHref: 'tel:+79951584470',   // без пробелов и скобок
-email: 'fortinox@yandex.ru',
+email: 'fort.inox@yandex.ru',
 ```
 
 `phoneHref` должен совпадать с `phone` по цифрам — по нему звонят с телефона.
