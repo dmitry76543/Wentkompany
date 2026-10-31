@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { deliverLeadToMax } from '@/lib/max-delivery';
 import { formatPhone, isValidPhone } from '@/lib/phone';
 import { checkUpload } from '@/lib/upload';
 
@@ -11,8 +12,8 @@ import { checkUpload } from '@/lib/upload';
  *   CRM_WEBHOOK_URL
  * Без каналов роут пишет заявку в лог и отвечает успехом (стенд).
  *
- * multipart/form-data: до трёх чертежей (drawing). Файлы уходят в Telegram,
- * на диск не пишутся. В MAX — текст заявки (как в KodBuster).
+ * multipart/form-data: до трёх чертежей (drawing). Файлы не пишутся на диск —
+ * уходят в Telegram и в MAX (upload → attachment).
  */
 
 export const runtime = 'nodejs';
@@ -183,22 +184,22 @@ export async function POST(request: Request) {
     }
   }
 
-  // MAX Bot API — как KodBuster: токен в Authorization, получатели — числовые user_id
+  // MAX Bot API: текст + файлы (platform-api2, /uploads → attachments)
   const maxToken = process.env.MAX_BOT_TOKEN;
   const maxRecipients = splitIds(process.env.MAX_RECIPIENT_IDS);
   if (maxToken && maxRecipients.length > 0) {
-    for (const userId of maxRecipients) {
-      tasks.push(
-        fetch(`https://platform-api.max.ru/messages?user_id=${encodeURIComponent(userId)}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: maxToken,
-          },
-          body: JSON.stringify({ text, notify: true }),
-        }).then((res) => assertDelivered(res, `max ${userId}`)),
-      );
-    }
+    tasks.push(
+      deliverLeadToMax({
+        accessToken: maxToken,
+        userIds: maxRecipients,
+        text,
+        files: uploads.flatMap((u) =>
+          u.bytes && u.meta && u.filename
+            ? [{ ok: true as const, bytes: u.bytes, meta: u.meta, filename: u.filename }]
+            : [],
+        ),
+      }),
+    );
   }
 
   if (process.env.CRM_WEBHOOK_URL) {
@@ -211,7 +212,7 @@ export async function POST(request: Request) {
           drawing: fileNames[0] ?? null,
           drawings: fileNames,
         }),
-      }).then((res) => assertOk(res, 'crm')),
+      }).then((res) => assertDelivered(res, 'crm')),
     );
   }
 
