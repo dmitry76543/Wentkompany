@@ -6,11 +6,20 @@
 
 import type { UploadCheck } from '@/lib/upload';
 
-/** Сначала api2 (актуальный), затем прежний хост — как в KodBuster. */
+/**
+ * Сначала platform-api.max.ru — так же, как в KodBuster (на Amvera
+ * platform-api2 часто падает из‑за TLS/серта Минцифры).
+ * Затем api2 как запасной.
+ */
 const MAX_API_HOSTS = [
-  'https://platform-api2.max.ru',
   'https://platform-api.max.ru',
+  'https://platform-api2.max.ru',
 ] as const;
+
+/** Убрать пробелы/«Bearer », если токен вставили из кабинета с префиксом. */
+export function normalizeMaxToken(raw: string): string {
+  return raw.trim().replace(/^Bearer\s+/i, '');
+}
 
 type ReadyUpload = Required<Pick<UploadCheck, 'bytes' | 'meta' | 'filename'>> & { ok: true };
 

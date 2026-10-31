@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { deliverLeadToMax } from '@/lib/max-delivery';
+import { deliverLeadToMax, normalizeMaxToken } from '@/lib/max-delivery';
 import { formatPhone, isValidPhone } from '@/lib/phone';
 import { checkUpload } from '@/lib/upload';
 
@@ -185,7 +185,7 @@ export async function POST(request: Request) {
   }
 
   // MAX Bot API: сначала текст, затем файлы (/uploads → attachments)
-  const maxToken = (process.env.MAX_BOT_TOKEN || '').trim();
+  const maxToken = normalizeMaxToken(process.env.MAX_BOT_TOKEN || '');
   const maxRecipients = splitIds(process.env.MAX_RECIPIENT_IDS);
   if (maxToken && maxRecipients.length > 0) {
     tasks.push(
