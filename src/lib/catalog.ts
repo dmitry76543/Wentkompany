@@ -38,8 +38,18 @@ export const schemeOf = (p: Product) => p.schemeImage || null;
 
 type RawProduct = Omit<Product, 'price'> & { price: number | null };
 
+/** next/image не принимает локальные URL с ?v=… без images.localPatterns. */
+function stripImageQuery(src: string): string {
+  const i = src.indexOf('?');
+  return i === -1 ? src : src.slice(0, i);
+}
+
 const rawFamilies = data.families as FamilyRecord[];
-const rawProducts = data.products as RawProduct[];
+const rawProducts = (data.products as RawProduct[]).map((p) => ({
+  ...p,
+  images: (p.images ?? []).map(stripImageQuery),
+  schemeImage: p.schemeImage ? stripImageQuery(p.schemeImage) : p.schemeImage,
+}));
 
 export const generatedAt = data.generatedAt as string;
 
