@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   families, products, familyBySlug, familyByCode, productBySlug, productsOf, traitsOf, shortName, schemeOf,
+  soleProductOf, type Product,
 } from '@/lib/catalog';
 import { calculate, rub, ru, dec, defaultMaterialGrade } from '@/lib/calc';
 import { HoodDiagram } from '@/components/hood-diagram';
@@ -21,7 +22,9 @@ import { AutomationModes } from '@/components/automation-modes';
 import { HoodDrawing } from '@/components/hood-drawing';
 import { ExportButtons } from '@/components/export-buttons';
 import { ClauseRichText, ClauseTipBadge } from '@/components/clause-tip';
+import { JsonLd } from '@/components/json-ld';
 import { site } from '@/lib/site';
+import { ORG_ID, absUrl, breadcrumbJsonLd } from '@/lib/seo';
 
 export function generateStaticParams() {
   return [
@@ -30,21 +33,40 @@ export function generateStaticParams() {
   ];
 }
 
+const sizesWord = (n: number) =>
+  n % 10 === 1 && n % 100 !== 11 ? 'типоразмер'
+    : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'типоразмера'
+      : 'типоразмеров';
+
+/** Описание из данных изделия: у типоразмеров одной линейки тексты в выгрузке совпадают. */
+function productDescription(p: Product): string {
+  if (!p.base) return (p.short || p.description).slice(0, 300);
+  const traits = traitsOf(p.family);
+  const c = calculate(p.base, traits, p.base, p.price, defaultMaterialGrade(traits.hydro), { typeLabel: p.type });
+  return [
+    `${p.name}: габарит H/W/D ${p.base.h}/${p.base.w}/${p.base.d} мм`,
+    `расчётный расход ${ru(c.airflow)} м³/ч, патрубки ${c.ducts.count} × Ø${c.ducts.diameter}`,
+    p.price ? `цена эталона ${rub(p.price)}` : 'цена после расчёта',
+  ].join(', ') + `. Нержавеющая сталь ${p.materials.join(' / ')}, изготовление по размерам объекта.`;
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const family = familyBySlug(slug);
   if (family) {
+    const sole = soleProductOf(family.code);
     return {
       title: family.title,
-      description: `${family.title}: ${family.count} типоразмера${family.priceFrom ? `, от ${rub(family.priceFrom)}` : ''}. Нержавеющая сталь AISI 430 и 304, изготовление по размерам объекта.`,
-      alternates: { canonical: `/catalog/${slug}` },
+      description: `${family.title}: ${family.count} ${sizesWord(family.count)}${family.priceFrom ? `, от ${rub(family.priceFrom)}` : ''}. Нержавеющая сталь AISI 430 и 304, изготовление по размерам объекта.`,
+      // линейка из одного изделия дублирует его страницу — канонична страница изделия
+      alternates: { canonical: sole ? `/catalog/${sole.slug}` : `/catalog/${slug}` },
     };
   }
   const product = productBySlug(slug);
   if (!product) return {};
   return {
     title: product.name,
-    description: (product.short || product.description).slice(0, 300),
+    description: productDescription(product),
     alternates: { canonical: `/catalog/${slug}` },
   };
 }
@@ -167,6 +189,15 @@ function FamilyView({ slug }: { slug: string }) {
           </Link>
           <Link href="/#catalog" className="btn btn-ghost">Весь каталог</Link>
         </div>
+
+        {!soleProductOf(family.code) && (
+          <JsonLd
+            data={breadcrumbJsonLd([
+              { name: 'Главная', path: '/' },
+              { name: family.title, path: `/catalog/${family.slug}` },
+            ])}
+          />
+        )}
       </div>
     </section>
   );
@@ -183,26 +214,39 @@ function ProductView({ slug }: { slug: string }) {
     ? calculate(p.base, traits, p.base, p.price, material, { typeLabel: p.type })
     : null;
   const related = productsOf(p.family).filter((x) => x.id !== p.id).slice(0, 3);
+  /** У однопозиционной линейки её страница канонизирована сюда — в крошках её не показываем. */
+  const familyCrumb = family && !soleProductOf(family.code) ? family : null;
+  const url = absUrl(`/catalog/${p.slug}`);
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: p.name,
-    sku: p.article,
-    description: (p.short || p.description).slice(0, 500),
-    brand: { '@type': 'Brand', name: site.name },
-    ...(p.price
-      ? {
-          offers: {
-            '@type': 'Offer',
-            price: p.price,
-            priceCurrency: 'RUB',
-            availability: 'https://schema.org/InStock',
-            url: `${site.url}/catalog/${p.slug}`,
-          },
-        }
-      : {}),
-  };
+  // Без цены Google считает Product неполным (нет offers) — такую разметку не выводим
+  const productJsonLd = p.price
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        '@id': `${url}#product`,
+        name: p.name,
+        sku: p.article,
+        url,
+        image: p.images.map(absUrl),
+        description: (p.short || p.description).slice(0, 500),
+        brand: { '@type': 'Brand', name: site.name },
+        manufacturer: { '@id': ORG_ID },
+        offers: {
+          '@type': 'Offer',
+          price: p.price,
+          priceCurrency: 'RUB',
+          availability: 'https://schema.org/InStock',
+          url,
+          seller: { '@id': ORG_ID },
+        },
+      }
+    : null;
+
+  const crumbsJsonLd = breadcrumbJsonLd([
+    { name: 'Главная', path: '/' },
+    ...(familyCrumb ? [{ name: familyCrumb.title, path: `/catalog/${familyCrumb.slug}` }] : []),
+    { name: p.name, path: `/catalog/${p.slug}` },
+  ]);
 
   return (
     <section className="band band-shop">
@@ -210,7 +254,7 @@ function ProductView({ slug }: { slug: string }) {
         <nav className="lbl mb-3 flex flex-wrap gap-2">
           <Link href="/" className="no-underline">Главная</Link><span>/</span>
           <Link href="/#catalog" className="no-underline">Каталог</Link><span>/</span>
-          {family && (<><Link href={`/catalog/${family.slug}`} className="no-underline">{family.code}</Link><span>/</span></>)}
+          {familyCrumb && (<><Link href={`/catalog/${familyCrumb.slug}`} className="no-underline">{familyCrumb.code}</Link><span>/</span></>)}
           <span>
             {p.type
               ?? (p.base ? `${p.base.h}/${p.base.w}/${p.base.d}` : null)
@@ -445,7 +489,8 @@ function ProductView({ slug }: { slug: string }) {
           </>
         )}
 
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        {productJsonLd && <JsonLd data={productJsonLd} />}
+        <JsonLd data={crumbsJsonLd} />
       </div>
     </section>
   );

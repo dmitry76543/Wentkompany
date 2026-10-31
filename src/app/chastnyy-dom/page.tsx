@@ -4,7 +4,7 @@ import { Process } from '@/components/process';
 import { Cases, hasCases } from '@/components/cases';
 import { CallLink } from '@/components/call-link';
 import { PageBackdrop } from '@/components/page-backdrop';
-import { priceFrom } from '@/lib/catalog';
+import { familyHref, priceFrom } from '@/lib/catalog';
 import { rub } from '@/lib/calc';
 import { site } from '@/lib/site';
 
@@ -25,14 +25,14 @@ const SITUATIONS = [
     tag: 'Мангальная зона в доме',
     title: 'Дым не должен уходить в гостиную',
     text: 'Открытый очаг в помещении требует полноценного улавливания и отдельного тракта наружу. Зонт делается по размеру ниши, а не подгоняется из готового.',
-    href: '/catalog/zvpg',
+    href: familyHref('ЗВПГ'),
     cta: 'Пристенный с гидрозатвором',
   },
   {
     tag: 'Беседка, летняя кухня',
     title: 'Очаг стоит по центру',
     text: 'Островной зонт с подвесом на четыре точки — по габаритам стола или мангала, с учётом свеса над очагом.',
-    href: '/catalog/zvog',
+    href: familyHref('ЗВОГ'),
     cta: 'Островной с гидрозатвором',
   },
   {

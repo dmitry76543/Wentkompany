@@ -106,37 +106,37 @@
   },
   {
     "source": "/product-category/zonty-vytjazhnye-pristennye-s-gidrozatvorom-zvpg",
-    "destination": "/catalog/zvpg",
+    "destination": "/catalog/zonty-vytjazhnye-pristennye-s-gidrozatvorom-zvpg",
     "permanent": true
   },
   {
     "source": "/product-category/zonty-vytjazhnye-ostrovnye-s-gidrozatvorom-zvog",
-    "destination": "/catalog/zvog",
+    "destination": "/catalog/zonty-vytjazhnye-ostrovnye-s-gidrozatvorom-zvog",
     "permanent": true
   },
   {
     "source": "/product-category/zonty-vytjazhnye-kupolnye-piramida",
-    "destination": "/catalog/pir",
+    "destination": "/catalog/zonty-vytjazhnye-kupolnye-piramida",
     "permanent": true
   },
   {
     "source": "/product-category/gidrofiltr",
-    "destination": "/catalog/gf",
+    "destination": "/catalog/gidrofiltr",
     "permanent": true
   },
   {
     "source": "/product-category/avtomatika-dlja-gidrofiltrov",
-    "destination": "/catalog/avt",
+    "destination": "/catalog/shhit-upravlenija-i-dispetcherizacii-dlja-zontov-s-gidrozatvorom-i-gidrofiltrov",
     "permanent": true
   },
   {
     "source": "/shop",
-    "destination": "/catalog",
+    "destination": "/#catalog",
     "permanent": true
   },
   {
     "source": "/product-category/nejtralnoe-oborudovanie",
-    "destination": "/catalog",
+    "destination": "/eshchyo-delaem",
     "permanent": true
   }
 ]

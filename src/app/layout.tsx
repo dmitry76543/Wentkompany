@@ -10,33 +10,46 @@ import { SiteFooter } from '@/components/site-footer';
 import { ScrollRestore } from '@/components/scroll-restore';
 import { site } from '@/lib/site';
 import { Metrika } from '@/components/metrika';
+import { JsonLd } from '@/components/json-ld';
+import { ORG_ID, SITE_TITLE, WEBSITE_ID, absUrl, openGraph } from '@/lib/seo';
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
-    default: 'FortInox — гидрозонты, гидрофильтры и вытяжные зонты',
+    default: SITE_TITLE,
     template: '%s · FortInox',
   },
   description: site.description,
-  openGraph: {
-    type: 'website',
-    locale: 'ru_RU',
-    siteName: site.name,
-    title: 'FortInox — гидрозонты, гидрофильтры и вытяжные зонты',
-    description: site.description,
-  },
+  openGraph: openGraph({ title: SITE_TITLE, description: site.description }),
   robots: { index: true, follow: true },
 };
 
-const orgJsonLd = {
+const siteJsonLd = {
   '@context': 'https://schema.org',
-  '@type': 'Organization',
-  name: site.name,
-  url: site.url,
-  telephone: site.phone,
-  email: site.email,
-  areaServed: 'RU',
-  description: site.description,
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': ORG_ID,
+      name: site.name,
+      url: absUrl('/'),
+      telephone: site.phone,
+      email: site.email,
+      // география — как в site.address, без выдуманного юрадреса
+      areaServed: [
+        { '@type': 'City', name: 'Москва' },
+        { '@type': 'AdministrativeArea', name: 'Московская область' },
+      ],
+      description: site.description,
+    },
+    {
+      '@type': 'WebSite',
+      '@id': WEBSITE_ID,
+      name: site.name,
+      url: absUrl('/'),
+      inLanguage: 'ru-RU',
+      publisher: { '@id': ORG_ID },
+    },
+  ],
 };
 
 /** Начертания первого экрана: заголовок, основной текст, моноширинные подписи. */
@@ -63,10 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteHeader />
         <main>{children}</main>
         <SiteFooter />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
-        />
+        <JsonLd data={siteJsonLd} />
       </body>
     </html>
   );

@@ -232,13 +232,21 @@ const CATEGORY_MAP = {
   'avtomatika-dlja-gidrofiltrov': 'avt',
 };
 
+/** Линейка из одного изделия канонизирована на изделие — ведём сразу туда, без лишнего шага. */
+const categoryTarget = (familySlug) => {
+  const code = Object.keys(FAMILY_SLUGS).find((c) => FAMILY_SLUGS[c] === familySlug);
+  const items = products.filter((p) => p.family === code);
+  return items.length === 1 ? `/catalog/${items[0].slug}` : `/catalog/${familySlug}`;
+};
+
 const redirects = [
   ...products.map((p) => ({ source: p.legacyUrl.replace(/\/$/, ''), destination: `/catalog/${p.slug}`, permanent: true })),
-  ...Object.entries(CATEGORY_MAP).map(([oldSlug, code]) => ({
-    source: `/product-category/${oldSlug}`, destination: `/catalog/${code}`, permanent: true,
+  ...Object.entries(CATEGORY_MAP).map(([oldSlug, familySlug]) => ({
+    source: `/product-category/${oldSlug}`, destination: categoryTarget(familySlug), permanent: true,
   })),
-  { source: '/shop', destination: '/catalog', permanent: true },
-  { source: '/product-category/nejtralnoe-oborudovanie', destination: '/catalog', permanent: true },
+  // /catalog сам редиректит на каталог главной (next.config.ts) — ведём сразу туда
+  { source: '/shop', destination: '/#catalog', permanent: true },
+  { source: '/product-category/nejtralnoe-oborudovanie', destination: '/eshchyo-delaem', permanent: true },
 ];
 
 fs.mkdirSync(path.join(ROOT, 'src/data'), { recursive: true });

@@ -88,6 +88,20 @@ export const familyByCode = (code: string) => getFamilies().find((f) => f.code =
 export const productBySlug = (slug: string) => getProducts().find((p) => p.slug === slug);
 export const productsOf = (code: string) => getProducts().filter((p) => p.family === code);
 
+/** Изделие, которое заменяет страницу линейки из одного типоразмера (ГФ, АВТ, ПИР, ЗВПГ, ЗВОГ). */
+export function soleProductOf(code: string): Product | null {
+  const items = productsOf(code);
+  return items.length === 1 ? items[0] : null;
+}
+
+/** Канонический адрес линейки: у однопозиционной — страница самого изделия. */
+export function familyHref(code: string): string {
+  const sole = soleProductOf(code);
+  if (sole) return `/catalog/${sole.slug}`;
+  const f = familyByCode(code);
+  return f ? `/catalog/${f.slug}` : '/#catalog';
+}
+
 export const traitsOf = (code: string): FamilyTraits => {
   const f = familyByCode(code);
   return { island: !!f?.island, supply: !!f?.supply, hydro: !!f?.hydro };

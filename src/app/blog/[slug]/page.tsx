@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { BlogProse } from '@/components/blog-prose';
-import { allBlogSlugs, getBlogArticle, listBlogArticles } from '@/lib/blog';
+import { JsonLd } from '@/components/json-ld';
+import { allBlogSlugs, articleDates, getBlogArticle, listBlogArticles } from '@/lib/blog';
+import { ORG_ID, WEBSITE_ID, absUrl, breadcrumbJsonLd, openGraph } from '@/lib/seo';
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -14,10 +16,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const article = getBlogArticle(slug);
   if (!article) return { title: 'Статья' };
+  const dates = articleDates(article.filename);
+  const description = article.excerpt || article.title;
   return {
     title: article.title,
-    description: article.excerpt || article.title,
+    description,
     alternates: { canonical: `/blog/${article.slug}` },
+    openGraph: openGraph({
+      type: 'article',
+      title: article.title,
+      description,
+      url: `/blog/${article.slug}`,
+      ...(dates ? { publishedTime: dates.published, modifiedTime: dates.modified } : {}),
+    }),
   };
 }
 
@@ -30,6 +41,24 @@ export default async function BlogArticlePage({ params }: Props) {
   const idx = all.findIndex((a) => a.slug === slug);
   const prev = idx > 0 ? all[idx - 1] : null;
   const next = idx >= 0 && idx < all.length - 1 ? all[idx + 1] : null;
+
+  const url = absUrl(`/blog/${article.slug}`);
+  const dates = articleDates(article.filename);
+  // Автор — издатель сайта: персонального автора у статей нет, придумывать его нельзя
+  const postJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    '@id': `${url}#article`,
+    headline: article.title,
+    description: article.excerpt || article.title,
+    url,
+    mainEntityOfPage: url,
+    inLanguage: 'ru-RU',
+    isPartOf: { '@id': WEBSITE_ID },
+    author: { '@id': ORG_ID },
+    publisher: { '@id': ORG_ID },
+    ...(dates ? { datePublished: dates.published, dateModified: dates.modified } : {}),
+  };
 
   return (
     <section className="band band-shop">
@@ -74,6 +103,15 @@ export default async function BlogArticlePage({ params }: Props) {
             Заявка на расчёт
           </Link>
         </div>
+
+        <JsonLd data={postJsonLd} />
+        <JsonLd
+          data={breadcrumbJsonLd([
+            { name: 'Главная', path: '/' },
+            { name: 'Блог', path: '/blog' },
+            { name: article.title, path: `/blog/${article.slug}` },
+          ])}
+        />
       </div>
     </section>
   );

@@ -1,6 +1,10 @@
 import type { NextConfig } from 'next';
 import redirects from './src/data/redirects.json';
 
+const siteUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://fortinox.ru');
+/** Технический домен Amvera дублирует сайт — пока основной домен не он сам. */
+const redirectAmveraHost = !/\.amvera\.(io|tech)$/.test(siteUrl.hostname);
+
 /**
  * 301 со старых URL WooCommerce.
  * Карта генерируется из выгрузки: `npm run data`.
@@ -12,11 +16,26 @@ const nextConfig: NextConfig = {
   async redirects() {
     // statusCode 301, а не permanent: true — Next отдаёт для permanent код 308,
     // а на миграции каталога привычнее и безопаснее классический 301.
-    return (redirects as { source: string; destination: string }[]).map((r) => ({
-      source: r.source,
-      destination: r.destination,
-      statusCode: 301 as const,
-    }));
+    return [
+      ...(redirectAmveraHost
+        ? [
+            {
+              // /api не трогаем: POST заявки по 301 превратился бы в GET
+              source: '/:path((?!api/).*)',
+              has: [{ type: 'host' as const, value: '.*\\.amvera\\.(?:io|tech)' }],
+              destination: `${siteUrl.origin}/:path`,
+              statusCode: 301 as const,
+            },
+          ]
+        : []),
+      // отдельного листинга нет — каталог живёт на главной
+      { source: '/catalog', destination: '/#catalog', statusCode: 301 as const },
+      ...(redirects as { source: string; destination: string }[]).map((r) => ({
+        source: r.source,
+        destination: r.destination,
+        statusCode: 301 as const,
+      })),
+    ];
   },
   async headers() {
     return [

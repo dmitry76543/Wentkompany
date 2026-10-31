@@ -6,7 +6,7 @@ import { Process } from '@/components/process';
 import { Cases, hasCases } from '@/components/cases';
 import { CallLink } from '@/components/call-link';
 import { PageBackdrop } from '@/components/page-backdrop';
-import { priceFrom } from '@/lib/catalog';
+import { familyHref, priceFrom } from '@/lib/catalog';
 import { rub } from '@/lib/calc';
 import { norms, site } from '@/lib/site';
 
@@ -37,7 +37,7 @@ const PAINS = [
   {
     title: 'Запах на улицу и к соседям',
     text: 'Жалобы жильцов встроенного дома — типовая причина предписаний. Гидрозатвор снимает основную массу жира и сажи до выхода в канал.',
-    link: { href: '/catalog/zvpg', label: 'Зонты с гидрозатвором' },
+    link: { href: familyHref('ЗВПГ'), label: 'Зонты с гидрозатвором' },
   },
   {
     title: 'Сроки перед открытием',
@@ -60,14 +60,14 @@ const KIT = [
         {' '}одним изделием: улавливание и гашение искры внутри зонта.
       </>
     ),
-    href: '/catalog/zvpg',
+    href: familyHref('ЗВПГ'),
   },
   {
     role: 'Отдельно стоящая фильтрация',
     item: 'Гидрофильтр ГФ',
     price: priceFrom('ГФ'),
     note: 'Когда над аппаратом уже стоит зонт и тракт нужно закрыть отдельным аппаратом в том же помещении.',
-    href: '/catalog/gf',
+    href: familyHref('ГФ'),
   },
   {
     role: 'Контроль и сигнализация',
@@ -79,7 +79,7 @@ const KIT = [
         <Link href="/normy-mchs#clause-5.30" style={{ color: 'var(--color-supply)' }}>п. 5.30</Link>.
       </>
     ),
-    href: '/catalog/avt',
+    href: familyHref('АВТ'),
   },
   {
     role: 'Кухня без открытого огня',

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { enhanceBlogNormsHtml } from '@/lib/blog-norms';
@@ -115,4 +116,30 @@ export function getBlogArticle(slug: string): BlogArticle | null {
 /** Все slug для generateStaticParams. */
 export function allBlogSlugs(): string[] {
   return listBlogArticles().map((a) => a.slug);
+}
+
+export type ArticleDates = { published: string; modified: string };
+
+const datesCache = new Map<string, ArticleDates | null>();
+
+/**
+ * Даты публикации и правки — из истории git (первый и последний коммит файла).
+ * Без git в окружении сборки дат нет вовсе: подставлять время сборки нельзя.
+ */
+export function articleDates(filename: string): ArticleDates | null {
+  if (datesCache.has(filename)) return datesCache.get(filename)!;
+  let dates: ArticleDates | null = null;
+  try {
+    const out = execFileSync(
+      'git',
+      ['log', '--follow', '--format=%aI', '--', path.join('content', 'blog', filename)],
+      { cwd: process.cwd(), encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+    const list = out.split('\n').map((s) => s.trim()).filter(Boolean);
+    if (list.length) dates = { published: list[list.length - 1], modified: list[0] };
+  } catch {
+    dates = null;
+  }
+  datesCache.set(filename, dates);
+  return dates;
 }

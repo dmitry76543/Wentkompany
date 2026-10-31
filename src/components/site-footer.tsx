@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { site } from '@/lib/site';
-import { hoodFamilies } from '@/lib/catalog';
+import { familyHref, hoodFamilies } from '@/lib/catalog';
 import { CallLink } from '@/components/call-link';
 import { MessengerLinks } from '@/components/messenger-links';
 
@@ -18,11 +18,11 @@ export function SiteFooter() {
           <div>
             <h2 className="mb-4 text-sm text-steel-300 normal-case tracking-normal">Каталог</h2>
             {hoodFamilies().map((f) => (
-              <Link key={f.slug} href={`/catalog/${f.slug}`} className="site-footer-link">
+              <Link key={f.slug} href={familyHref(f.code)} className="site-footer-link">
                 {f.title}
               </Link>
             ))}
-            <Link href="/catalog/gf" className="site-footer-link">
+            <Link href={familyHref('ГФ')} className="site-footer-link">
               Гидрофильтры
             </Link>
           </div>
