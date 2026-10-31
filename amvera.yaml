@@ -4,7 +4,8 @@
 # https://docs.amvera.ru/applications/environments/nodejs-server.html
 #
 # В панели Amvera: окружение node.js / npm, ветка main.
-# Секреты (Telegram, CRM) — Переменные. Публичные NEXT_PUBLIC_* — в amvera.build.env.
+# Секреты (Telegram, MAX, CRM) — только панель «Переменные», не в git.
+# Публичные NEXT_PUBLIC_* — в amvera.build.env.
 
 meta:
   environment: node

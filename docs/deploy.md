@@ -39,7 +39,8 @@ cp .env.example .env
 | Переменная | Значение |
 | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | `https://fortinox.ru` |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | куда падают заявки |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | заявки в Telegram |
+| `MAX_BOT_TOKEN`, `MAX_RECIPIENT_IDS` | заявки в MAX (секреты, не в git) |
 | `CRM_WEBHOOK_URL` | приёмник CRM, если есть |
 | `NEXT_PUBLIC_YM_ID` | номер счётчика Метрики |
 | `ENABLE_HSTS` | `0` сейчас, `1` после пункта 6 |

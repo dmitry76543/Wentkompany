@@ -3,21 +3,26 @@ import { formatPhone, isValidPhone } from '@/lib/phone';
 import { checkUpload } from '@/lib/upload';
 
 /**
- * Приём заявки: Telegram-бот + вебхук CRM.
+ * Приём заявки: Telegram, MAX (Bot API) и вебхук CRM.
  *
- * Переменные окружения (см. .env.example):
- *   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, CRM_WEBHOOK_URL
- * Без них роут не падает: пишет в лог и отвечает успехом, чтобы форма
- * работала на стенде до настройки интеграций.
+ * Секреты только на сервере (см. .env.example) — в NEXT_PUBLIC_* и git не кладём:
+ *   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+ *   MAX_BOT_TOKEN, MAX_RECIPIENT_IDS
+ *   CRM_WEBHOOK_URL
+ * Без каналов роут пишет заявку в лог и отвечает успехом (стенд).
  *
- * Форма приходит как multipart/form-data: к заявке можно приложить до
- * трёх чертежей/эскизов (поле drawing, несколько значений). Файлы нигде
- * не сохраняются — уходят в Telegram и забываются.
- *
- * JSON тоже принимается — форма без файла отправляет его по-прежнему.
+ * multipart/form-data: до трёх чертежей (drawing). Файлы уходят в Telegram,
+ * на диск не пишутся. В MAX — текст заявки (как в KodBuster).
  */
 
 export const runtime = 'nodejs';
+
+function splitIds(raw: string | undefined): string[] {
+  return (raw ?? '')
+    .split(/[,;\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 interface Lead {
   name?: string;
@@ -114,45 +119,76 @@ export async function POST(request: Request) {
 
   const fileNames = uploads.map((u) => u.filename).filter(Boolean) as string[];
   const text =
-    `🔧 Заявка с сайта\n` +
-    `Имя: ${lead.name}\n` +
-    `Телефон: ${lead.phone}\n` +
-    `Объект: ${lead.object || '—'}\n` +
-    `Задача: ${lead.task || '—'}\n` +
-    (lead.configuration ? `Конфигурация: ${lead.configuration}\n` : '') +
+    `📩 Заявка с сайта «FortInox»\n` +
+    `\n` +
+    `👤 Имя: ${lead.name}\n` +
+    `📞 Телефон: ${lead.phone}\n` +
+    `🏭 Объект: ${lead.object || '—'}\n` +
+    `💬 Задача: ${lead.task || '—'}\n` +
+    (lead.configuration ? `⚙️ Конфигурация: ${lead.configuration}\n` : '') +
     (fileNames.length
-      ? `Файлы (${fileNames.length}): ${fileNames.join(', ')}\n`
+      ? `📎 Файлы (${fileNames.length}): ${fileNames.join(', ')}\n`
       : '') +
-    `Страница: ${lead.page || '/'}`;
+    `🔗 Страница: ${lead.page || '/'}`;
+
+  async function assertOk(res: Response, label: string) {
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`${label}: HTTP ${res.status} ${body.slice(0, 200)}`);
+    }
+  }
 
   const tasks: Promise<unknown>[] = [];
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chat = process.env.TELEGRAM_CHAT_ID;
+  const tgToken = process.env.TELEGRAM_BOT_TOKEN;
+  const tgChats = splitIds(process.env.TELEGRAM_CHAT_ID || process.env.TELEGRAM_CHAT_IDS);
 
-  if (token && chat) {
-    // Сначала текст заявки, затем каждый файл отдельным сообщением
-    tasks.push(
-      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chat, text, disable_web_page_preview: true }),
-      }),
-    );
-    for (const upload of uploads) {
-      if (!upload.bytes || !upload.meta || !upload.filename) continue;
-      const form = new FormData();
-      form.set('chat_id', chat);
-      form.set(
-        'document',
-        new Blob([new Uint8Array(upload.bytes)], { type: upload.meta.mime }),
-        upload.filename,
+  if (tgToken && tgChats.length > 0) {
+    for (const chat of tgChats) {
+      tasks.push(
+        fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chat, text, disable_web_page_preview: true }),
+        }).then((res) => assertOk(res, `telegram ${chat}`)),
       );
-      tasks.push(fetch(`https://api.telegram.org/bot${token}/sendDocument`, { method: 'POST', body: form }));
+      for (const upload of uploads) {
+        if (!upload.bytes || !upload.meta || !upload.filename) continue;
+        const form = new FormData();
+        form.set('chat_id', chat);
+        form.set(
+          'document',
+          new Blob([new Uint8Array(upload.bytes)], { type: upload.meta.mime }),
+          upload.filename,
+        );
+        tasks.push(
+          fetch(`https://api.telegram.org/bot${tgToken}/sendDocument`, {
+            method: 'POST',
+            body: form,
+          }).then((res) => assertOk(res, `telegram-doc ${chat}`)),
+        );
+      }
+    }
+  }
+
+  // MAX Bot API — как KodBuster: токен только в Authorization, получатели — числовые user_id
+  const maxToken = process.env.MAX_BOT_TOKEN;
+  const maxRecipients = splitIds(process.env.MAX_RECIPIENT_IDS);
+  if (maxToken && maxRecipients.length > 0) {
+    for (const userId of maxRecipients) {
+      tasks.push(
+        fetch(`https://platform-api.max.ru/messages?user_id=${encodeURIComponent(userId)}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: maxToken,
+          },
+          body: JSON.stringify({ text, notify: true }),
+        }).then((res) => assertOk(res, `max ${userId}`)),
+      );
     }
   }
 
   if (process.env.CRM_WEBHOOK_URL) {
-    // В CRM уходит только текст заявки: файлы живут в Telegram у менеджера
     tasks.push(
       fetch(process.env.CRM_WEBHOOK_URL, {
         method: 'POST',
@@ -162,7 +198,7 @@ export async function POST(request: Request) {
           drawing: fileNames[0] ?? null,
           drawings: fileNames,
         }),
-      }),
+      }).then((res) => assertOk(res, 'crm')),
     );
   }
 
@@ -179,6 +215,9 @@ export async function POST(request: Request) {
   if (failed.length === results.length) {
     console.error('[lead] доставка не удалась', failed, lead);
     return NextResponse.json({ error: 'Не удалось передать заявку. Позвоните, пожалуйста.' }, { status: 502 });
+  }
+  if (failed.length > 0) {
+    console.error('[lead] частичная доставка', failed);
   }
 
   return NextResponse.json({ ok: true, delivered: results.length - failed.length });
