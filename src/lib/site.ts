@@ -12,9 +12,9 @@ export const site = {
     'Производство гидрозонтов, гидрофильтров и вытяжных зонтов из нержавеющей стали. ' +
     'Решения под требования Изменения № 3 к СП 7.13130.2013 для мангалов и тандыров.',
   messengers: {
-    max: '',
-    whatsapp: '',
-    telegram: '',
+    max: 'https://max.ru/u/f9LHodD0cOJslSuElobewW_frHCqrR7nP6vihGTkiJqpviX4pz-VYyE1t4s',
+    telegram: 'https://t.me/+79951584470',
+    whatsapp: 'https://wa.me/79951584470',
   },
 } as const;
 

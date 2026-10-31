@@ -182,16 +182,16 @@ export function MessengerLinks({ variant = 'full' }: { variant?: 'full' | 'icons
   const items: { id: MessengerId; label: string; brand: string; icon: ReactNode }[] = [
     { id: 'max', label: 'Max', brand: '#5B4BFF', icon: <MaxIcon /> },
     {
-      id: 'whatsapp',
-      label: 'WhatsApp',
-      brand: '#25D366',
-      icon: <WhatsAppIcon gradId={`wa-${uid}`} />,
-    },
-    {
       id: 'telegram',
       label: 'Telegram',
       brand: '#2AABEE',
       icon: <TelegramIcon gradId={`tg-${uid}`} />,
+    },
+    {
+      id: 'whatsapp',
+      label: 'WhatsApp',
+      brand: '#25D366',
+      icon: <WhatsAppIcon gradId={`wa-${uid}`} />,
     },
   ];
 
