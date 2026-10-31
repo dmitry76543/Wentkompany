@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { deliverLeadToMax, normalizeMaxToken } from '@/lib/max-delivery';
 import { formatPhone, isValidPhone } from '@/lib/phone';
+import { deliverLeadToTelegram, normalizeTelegramToken } from '@/lib/telegram-delivery';
 import { checkUpload } from '@/lib/upload';
 
 /**
@@ -132,72 +133,48 @@ export async function POST(request: Request) {
       : '') +
     `🔗 Страница: ${lead.page || '/'}`;
 
-  async function assertDelivered(res: Response, label: string) {
-    const body = await res.text().catch(() => '');
-    if (!res.ok) {
-      throw new Error(`${label}: HTTP ${res.status} ${body.slice(0, 200)}`);
-    }
-    // Telegram/MAX часто отдают 200 с { ok: false, … }
-    try {
-      const json = JSON.parse(body) as { ok?: boolean; error?: string; description?: string };
-      if (json && json.ok === false) {
-        throw new Error(`${label}: ${json.error || json.description || body.slice(0, 200)}`);
-      }
-    } catch (e) {
-      if (e instanceof SyntaxError) return; // не JSON (например, sendDocument)
-      throw e;
-    }
-  }
+  const readyFiles = uploads.flatMap((u) =>
+    u.bytes && u.meta && u.filename
+      ? [{ ok: true as const, bytes: u.bytes, meta: u.meta, filename: u.filename }]
+      : [],
+  );
 
-  const tasks: Promise<unknown>[] = [];
-
-  // Telegram Bot API — текст + вложения (секреты только в env)
-  const tgToken = process.env.TELEGRAM_BOT_TOKEN;
+  const tgToken = normalizeTelegramToken(process.env.TELEGRAM_BOT_TOKEN || '');
   const tgChats = splitIds(
     process.env.TELEGRAM_CHAT_IDS || process.env.TELEGRAM_CHAT_ID,
   );
-  if (tgToken && tgChats.length > 0) {
-    for (const chat of tgChats) {
-      tasks.push(
-        fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chat, text, disable_web_page_preview: true }),
-        }).then((res) => assertDelivered(res, `telegram ${chat}`)),
-      );
-      for (const upload of uploads) {
-        if (!upload.bytes || !upload.meta || !upload.filename) continue;
-        const form = new FormData();
-        form.set('chat_id', chat);
-        form.set(
-          'document',
-          new Blob([new Uint8Array(upload.bytes)], { type: upload.meta.mime }),
-          upload.filename,
-        );
-        tasks.push(
-          fetch(`https://api.telegram.org/bot${tgToken}/sendDocument`, {
-            method: 'POST',
-            body: form,
-          }).then((res) => assertDelivered(res, `telegram-doc ${chat}`)),
-        );
-      }
-    }
-  }
-
-  // MAX Bot API: сначала текст, затем файлы (/uploads → attachments)
   const maxToken = normalizeMaxToken(process.env.MAX_BOT_TOKEN || '');
   const maxRecipients = splitIds(process.env.MAX_RECIPIENT_IDS);
+
+  const tasks: Promise<unknown>[] = [];
+
+  // Telegram: один канал (текст → файлы), токен без пробелов/«bot»
+  if (tgToken && tgChats.length > 0) {
+    tasks.push(
+      deliverLeadToTelegram({
+        botToken: tgToken,
+        chatIds: tgChats,
+        text,
+        files: readyFiles,
+      }).then((r) => {
+        console.info('[lead] Telegram ok', r);
+        return r;
+      }),
+    );
+  } else if (maxToken && maxRecipients.length > 0) {
+    console.warn(
+      '[lead] Telegram не настроен (нужны TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID). Заявка уйдёт только в MAX.',
+    );
+  }
+
+  // MAX: текст, затем файлы
   if (maxToken && maxRecipients.length > 0) {
     tasks.push(
       deliverLeadToMax({
         accessToken: maxToken,
         userIds: maxRecipients,
         text,
-        files: uploads.flatMap((u) =>
-          u.bytes && u.meta && u.filename
-            ? [{ ok: true as const, bytes: u.bytes, meta: u.meta, filename: u.filename }]
-            : [],
-        ),
+        files: readyFiles,
       }).then((r) => {
         console.info('[lead] MAX ok', r);
         return r;
@@ -211,15 +188,19 @@ export async function POST(request: Request) {
 
   if (process.env.CRM_WEBHOOK_URL) {
     tasks.push(
-      fetch(process.env.CRM_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...lead,
-          drawing: fileNames[0] ?? null,
-          drawings: fileNames,
-        }),
-      }).then((res) => assertDelivered(res, 'crm')),
+      (async () => {
+        const res = await fetch(process.env.CRM_WEBHOOK_URL!, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...lead,
+            drawing: fileNames[0] ?? null,
+            drawings: fileNames,
+          }),
+        });
+        const body = await res.text().catch(() => '');
+        if (!res.ok) throw new Error(`crm: HTTP ${res.status} ${body.slice(0, 200)}`);
+      })(),
     );
   }
 
