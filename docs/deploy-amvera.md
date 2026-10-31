@@ -31,9 +31,9 @@ Dockerfile оставлен для Timeweb / локального `docker compos
 
 | Переменная | Когда нужна | Где задаётся |
 | --- | --- | --- |
-| `TELEGRAM_BOT_TOKEN` | Заявки в Telegram | Панель Amvera (секрет) |
-| `TELEGRAM_CHAT_ID` | Заявки в Telegram | Панель Amvera |
-| `MAX_BOT_TOKEN` | Заявки в MAX | Панель Amvera (секрет) |
+| `TELEGRAM_BOT_TOKEN` | Заявки в Telegram (секрет) | Панель Amvera |
+| `TELEGRAM_CHAT_ID` или `TELEGRAM_CHAT_IDS` | chat_id получателей через запятую | Панель Amvera |
+| `MAX_BOT_TOKEN` | Заявки в MAX (секрет) | Панель Amvera |
 | `MAX_RECIPIENT_IDS` | Числовые user_id MAX через запятую | Панель Amvera |
 | `CRM_WEBHOOK_URL` | CRM, если есть | Панель Amvera (секрет) |
 | `NEXT_PUBLIC_SITE_URL` | metadata, sitemap, JSON-LD | **`amvera.build.env`** в git |

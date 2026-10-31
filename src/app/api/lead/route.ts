@@ -131,17 +131,30 @@ export async function POST(request: Request) {
       : '') +
     `🔗 Страница: ${lead.page || '/'}`;
 
-  async function assertOk(res: Response, label: string) {
+  async function assertDelivered(res: Response, label: string) {
+    const body = await res.text().catch(() => '');
     if (!res.ok) {
-      const body = await res.text().catch(() => '');
       throw new Error(`${label}: HTTP ${res.status} ${body.slice(0, 200)}`);
+    }
+    // Telegram/MAX часто отдают 200 с { ok: false, … }
+    try {
+      const json = JSON.parse(body) as { ok?: boolean; error?: string; description?: string };
+      if (json && json.ok === false) {
+        throw new Error(`${label}: ${json.error || json.description || body.slice(0, 200)}`);
+      }
+    } catch (e) {
+      if (e instanceof SyntaxError) return; // не JSON (например, sendDocument)
+      throw e;
     }
   }
 
   const tasks: Promise<unknown>[] = [];
-  const tgToken = process.env.TELEGRAM_BOT_TOKEN;
-  const tgChats = splitIds(process.env.TELEGRAM_CHAT_ID || process.env.TELEGRAM_CHAT_IDS);
 
+  // Telegram Bot API — текст + вложения (секреты только в env)
+  const tgToken = process.env.TELEGRAM_BOT_TOKEN;
+  const tgChats = splitIds(
+    process.env.TELEGRAM_CHAT_IDS || process.env.TELEGRAM_CHAT_ID,
+  );
   if (tgToken && tgChats.length > 0) {
     for (const chat of tgChats) {
       tasks.push(
@@ -149,7 +162,7 @@ export async function POST(request: Request) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ chat_id: chat, text, disable_web_page_preview: true }),
-        }).then((res) => assertOk(res, `telegram ${chat}`)),
+        }).then((res) => assertDelivered(res, `telegram ${chat}`)),
       );
       for (const upload of uploads) {
         if (!upload.bytes || !upload.meta || !upload.filename) continue;
@@ -164,13 +177,13 @@ export async function POST(request: Request) {
           fetch(`https://api.telegram.org/bot${tgToken}/sendDocument`, {
             method: 'POST',
             body: form,
-          }).then((res) => assertOk(res, `telegram-doc ${chat}`)),
+          }).then((res) => assertDelivered(res, `telegram-doc ${chat}`)),
         );
       }
     }
   }
 
-  // MAX Bot API — как KodBuster: токен только в Authorization, получатели — числовые user_id
+  // MAX Bot API — как KodBuster: токен в Authorization, получатели — числовые user_id
   const maxToken = process.env.MAX_BOT_TOKEN;
   const maxRecipients = splitIds(process.env.MAX_RECIPIENT_IDS);
   if (maxToken && maxRecipients.length > 0) {
@@ -183,7 +196,7 @@ export async function POST(request: Request) {
             Authorization: maxToken,
           },
           body: JSON.stringify({ text, notify: true }),
-        }).then((res) => assertOk(res, `max ${userId}`)),
+        }).then((res) => assertDelivered(res, `max ${userId}`)),
       );
     }
   }
