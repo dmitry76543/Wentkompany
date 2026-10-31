@@ -73,7 +73,7 @@ export function MobileNav({ links }: { links: { href: string; label: string }[] 
           >
             {site.phone}
           </a>
-          <Link href="/configurator" className="btn w-full">
+          <Link href="/configurator" className="btn w-full" onClick={() => setOpen(false)}>
             Собрать зонт
           </Link>
         </div>

@@ -2007,11 +2007,14 @@
   .nav-sheet nav a:hover { color: var(--color-extract); padding-left: 0.35rem; }
   .nav-sheet nav a[aria-current="page"] { color: var(--color-extract); }
   .nav-sheet__phone {
-    display: block; padding: 1.1rem 0; font-size: 1.1rem; text-decoration: none;
+    display: block; margin-top: 0.35rem; padding: 1.15rem 0 0.55rem;
+    font-size: 1.1rem; text-decoration: none;
     color: var(--color-steel-100);
     transition: color 0.22s var(--ease-out);
   }
   .nav-sheet__phone:hover { color: var(--color-extract); }
+  /* Отступ до CTA — телефон не должен липнуть к «Собрать зонт» */
+  .nav-sheet > .btn { margin-top: 0.85rem; }
 
   .site-nav-link {
     text-decoration: none;

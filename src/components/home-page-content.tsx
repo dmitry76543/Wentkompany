@@ -44,7 +44,7 @@ export function HomePageContent() {
         <div className="wrap hero">
           <div className="hero__copy">
             <p className="lbl">
-              Собственное производство · нержавеющая сталь AISI 430 / 304
+              Нержавеющая сталь AISI 430 / 304
             </p>
             <h1>
               Вытяжные зонты<br />и гидрофильтры<br />
