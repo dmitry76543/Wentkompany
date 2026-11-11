@@ -8,7 +8,7 @@ export const absUrl = (path: string) => new URL(path, site.url).toString();
 export const ORG_ID = absUrl('/#organization');
 export const WEBSITE_ID = absUrl('/#website');
 
-export const SITE_TITLE = 'FortInox — гидрозонты, гидрофильтры и вытяжные зонты';
+export const SITE_TITLE = 'FortInox - вытяжные зонты, гидрофильтры, гидрозонты, столы, кухни, мебель из нержавеющей стали';
 
 const TITLE_SUFFIX = ' · FortInox';
 const TITLE_MAX = 65;
